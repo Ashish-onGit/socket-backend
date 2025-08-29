@@ -6,14 +6,19 @@ const { Server } = require('socket.io');
 const bodyParser = require('body-parser');
 
 const app = express();
-app.use(cors());
+
+// ✅ Use dynamic client URL in prod, fallback to localhost in dev
+app.use(cors({
+  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  methods: ["GET", "POST"]
+}));
 app.use(bodyParser.json());
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST']
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    methods: ["GET", "POST"]
   }
 });
 
@@ -44,7 +49,6 @@ io.on('connection', (socket) => {
     io.emit('receive_message', {
       message: data.message,
       sender: data.username,
-    //   senderId: socket.id,
     });
   });
 
@@ -53,6 +57,8 @@ io.on('connection', (socket) => {
   });
 });
 
-app.get('/', (req, res) => res.send('Server is running'));
+app.get('/', (req, res) => res.send('🚀 Server is running'));
 
-server.listen(3001, () => console.log('Listening on 3001'));
+// ✅ Railway requires dynamic port
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
