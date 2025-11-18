@@ -1,1 +1,81 @@
-const express = require('express'); const http = require('http'); const cors = require('cors'); const { Server } = require('socket.io'); const bodyParser = require('body-parser'); const app = express(); app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173", methods: ["GET", "POST"] })); app.use(bodyParser.json()); const server = http.createServer(app); const io = new Server(server, { cors: { origin: process.env.CLIENT_URL || "http://localhost:5173", methods: ["GET", "POST"] } }); // In-memory user store const users = {}; app.post('/register', (req, res) => { const { username, password } = req.body; if (users[username]) { return res.status(400).json({ error: 'Username exists' }); } users[username] = password; return res.json({ message: 'Registered successfully' }); }); app.post('/login', (req, res) => { const { username, password } = req.body; if (users[username] && users[username] === password) { return res.json({ message: 'Login success' }); } return res.status(401).json({ error: 'Invalid credentials' }); }); io.on('connection', (socket) => { console.log(`User connected: ${socket.id}`); socket.on('send_message', (data) => { io.emit('receive_message', { message: data.message, sender: data.username, }); }); // ✅ Typing indicator events socket.on('typing', (username) => { // console.log("Received typing event from:", username); socket.broadcast.emit('show_typing', username); }); socket.on('stop_typing', () => { socket.broadcast.emit('hide_typing'); }); socket.on('disconnect', () => { console.log(`User disconnected: ${socket.id}`); }); }); app.get('/', (req, res) => res.send('🚀 Server is running')); const PORT = process.env.PORT || 3001; server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const { Server } = require('socket.io');
+const bodyParser = require('body-parser');
+
+const app = express();
+
+// Middleware
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  })
+);
+app.use(bodyParser.json());
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  },
+});
+
+// In-memory user store
+const users = {};
+
+// Registration
+app.post('/register', (req, res) => {
+  const { username, password } = req.body;
+
+  if (users[username]) {
+    return res.status(400).json({ error: 'Username exists' });
+  }
+
+  users[username] = password;
+  return res.json({ message: 'Registered successfully' });
+});
+
+// Login
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  if (users[username] && users[username] === password) {
+    return res.json({ message: 'Login success' });
+  }
+
+  return res.status(401).json({ error: 'Invalid credentials' });
+});
+
+// Socket.io
+io.on('connection', (socket) => {
+  console.log(`User connected: ${socket.id}`);
+
+  socket.on('send_message', (data) => {
+    io.emit('receive_message', {
+      message: data.message,
+      sender: data.username,
+    });
+  });
+
+  // Typing indicator
+  socket.on('typing', (username) => {
+    socket.broadcast.emit('show_typing', username);
+  });
+
+  socket.on('stop_typing', () => {
+    socket.broadcast.emit('hide_typing');
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${socket.id}`);
+  });
+});
+
+// Root route
+app.get('/', (req, res) => res.send('🚀 Server is running'));
+
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
