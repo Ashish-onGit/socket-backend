@@ -31,10 +31,19 @@ app.post("/register", (req, res) => {
   return res.json({ message: "Registered successfully" });
 });
 
+// ================================
+// UPDATED LOGIN METHOD
+// ================================
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
-  if (users[username] && users[username] === password) {
+  // Allowed temporary login users
+  const allowedUsers = {
+    Ashish: "Ashish",
+    Saumya: "Saumya",
+  };
+
+  if (allowedUsers[username] && allowedUsers[username] === password) {
     return res.json({ message: "Login success" });
   }
 
@@ -59,23 +68,10 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // ----------------------------
-  // RECEIVE MESSAGE FROM CLIENT
-  // ----------------------------
   socket.on("send_message", (msgObj) => {
-    // IMPORTANT:
-    // - msgObj contains the FULL message (message, sender, replyTo, etc.)
-    // - Don't modify it
-    // - Don't strip fields
-    // - Don't rename keys
-
-    // Send to ALL other users except sender
     socket.broadcast.emit("receive_message", msgObj);
   });
 
-  // ----------------------------
-  // TYPING INDICATOR
-  // ----------------------------
   socket.on("typing", (username) => {
     socket.broadcast.emit("show_typing", username);
   });
@@ -84,9 +80,6 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("hide_typing");
   });
 
-  // ----------------------------
-  // DISCONNECT
-  // ----------------------------
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.id}`);
   });
